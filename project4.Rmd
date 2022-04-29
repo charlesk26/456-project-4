@@ -1,0 +1,108 @@
+---
+title: "project-4"
+author: "group1"
+data: "4/28/2022"
+output: html_document
+---
+#Library
+```{r setup, include=FALSE}
+library(plotly)
+library(dplyr)
+library(class)
+library(tidyverse)
+library(moderndive)
+library(skimr)
+library(infer)
+library(tinytex)
+library(MASS)
+library(caret)
+library(gmodels)
+
+```
+#Import Data
+```{r}
+data_raw <- read_csv("~/Documents/Collegiate/Spring_2022/MATH_456/essays/project_4/texas_cov.csv")
+df <- subset(data_raw, select = -c(date))
+numeric_data <- subset(df, select = -c(metro))
+data_pop_small <- filter(df, est_pop < 2e+05)
+glimpse(df)
+glimpse(numeric_data)
+```
+#PCA
+```{r}
+pca <- prcomp(numeric_data, scale = TRUE)
+print(pca)
+plot(pca$x[,1], pca$x[,2])
+pca.var <- pca$sdev^2
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+barplot(pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
+```
+#3d Plot of Variables under PC1
+```{r}
+p <- plot_ly(
+  df, x = ~cases, y = ~People.Fully.Vaccinated, z = ~est_pop, 
+  color = ~metro, colors = c('#f2746b', '#5fb1d4')
+  ) %>%
+  add_markers() %>%
+  layout(
+    scene = list(xaxis = list(title = 'number of cases'),
+        yaxis = list(title = 'People Fully Vaccinated'),
+        zaxis = list(title = 'population size'))
+        )
+p
+```
+#3d Plot of Variables under PC1 part 2
+```{r}
+p <- plot_ly(
+  df, x = ~cases, y = ~deaths, z = ~est_pop, 
+  color = ~metro, colors = c('#f2746b', '#5fb1d4')
+  ) %>%
+  add_markers() %>%
+  layout(
+    scene = list(xaxis = list(title = 'number of cases'),
+        yaxis = list(title = 'number of deaths'),
+        zaxis = list(title = 'population size'))
+        )
+p
+```
+#Plotting Features
+```{r}
+ggplot(data = df, aes(x = est_pop, y = metro, color = metro))+geom_point()
+ggplot(data = data_pop_small, aes(x = est_pop, y = metro, color = metro))+geom_point()
+
+ggplot(data = df, aes(x = unemp_rate, y = metro, color = metro))+geom_point()
+
+ggplot(data = df, aes(x = est_pop, y = unemp_rate, color = metro))+geom_point()
+```
+#Run KNN Algorithm
+```{r}
+normalize <- function(x) {
+  return ((x - min(x)) / (max(x) - min(x))) }
+df.n <- as.data.frame(lapply(df[2:6], normalize))
+
+train.t <- df.n[1:175,] # 70% training data
+test.t <- df.n[176:253,] # remaining 30% test data
+train.t_labels <- df[1:175,1]
+test.t_labels <-df[176:253,1]
+
+train.t_labels
+NROW(train.t_labels)
+
+cl = train.t_labels[,1, drop = TRUE]
+knn.13 <- knn(train.t,test.t, cl, k=13)
+ACC.13 <- 100 * sum(cl == knn.13)/NROW(test.t_labels)
+a = test.t_labels[,1, drop = TRUE]
+CrossTable(x = a, y = knn.13, prop.chisq = FALSE)
+```
+#Results
+```{r}
+i=1
+k.optm=1
+for (i in 1:28){
+knn.mod <- knn(train.t,test.t, cl, k=i)
+k.optm[i] <- 100 * sum(a == knn.mod)/NROW(test.t_labels)
+k=i
+cat(k,'=',k.optm[i],'')}
+plot(k.optm, type="b", xlab="K- Value",ylab="Accuracy level")
+```
+
